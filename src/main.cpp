@@ -4,8 +4,7 @@
 using namespace ace_button;
 
 // E-ink display includes
-#include "Display_EPD_W21_spi.h"
-#include "Display_EPD_W21.h"
+#include "epd.h"
 #include "Ap_29demo.h"
 
 // Pin definicije za Adafruit Feather ESP32-S3
@@ -13,11 +12,7 @@ constexpr uint8_t BTN_PIN = 10;          // Feather S3 tipka
 constexpr bool BTN_ACTIVE_LOW = true;    // tipka spaja na GND
 constexpr uint8_t SLIDE_PIN = 9;         // GPIO9 za slide switch
 
-// E-ink display pinovi
-#define EPD_BUSY_PIN   6    // BUSY  (input)
-#define EPD_RST_PIN    11   // RST   (output)
-#define EPD_DC_PIN     12   // DC    (output)
-#define EPD_CS_PIN     13   // CS    (output)
+// E-ink display pinovi su definirani u epd.h
 
 // Pragovi
 const unsigned long MULTI_CLICK_WINDOW = 300;  // ms za multi-click
@@ -102,19 +97,9 @@ void handleEvent(AceButton* btn, uint8_t eventType, uint8_t buttonState) {
 void initDisplay() {
   if (displayInitialized) return;
   
-  // SPI na Feather S3 (SCK=GPIO36, MISO=GPIO37, MOSI=GPIO35)
-  SPI.begin(36, 37, 35);
-  
-  // E-Ink pin directions
-  pinMode(EPD_BUSY_PIN, INPUT);
-  pinMode(EPD_RST_PIN, OUTPUT);
-  pinMode(EPD_DC_PIN, OUTPUT);
-  pinMode(EPD_CS_PIN, OUTPUT);
-  
   // Init display
-  EPD_HW_Init();
-  EPD_WhiteScreen_White(); // Clear screen
-  EPD_DeepSleep();
+  epd_init();
+  epd_clear_screen();
   
   displayInitialized = true;
   Serial.println("E-ink display initialized");
@@ -123,27 +108,28 @@ void initDisplay() {
 void updateDisplay() {
   if (!displayInitialized) return;
   
-  EPD_HW_Init();
-  
   switch (currentScreen) {
     case 0: // Blank screen
-      EPD_WhiteScreen_White();
+      epd_display_white_screen();
+      Serial.println("Display: Blank white screen");
       break;
       
     case 1: // Text screen
-      EPD_WhiteScreen_ALL(gImage_1);
+      epd_display_image(gImage_1);
+      Serial.println("Display: Text screen (gImage_1)");
       break;
       
     case 2: // Image screen
-      EPD_WhiteScreen_ALL(gImage_2);
+      epd_display_image(gImage_2);
+      Serial.println("Display: Image screen (gImage_2)");
       break;
       
     case 3: // Clock screen
-      EPD_WhiteScreen_ALL(gImage_4G1);
+      epd_4gray_display(gImage_4G1);
+      Serial.println("Display: Clock screen (4-gray gImage_4G1)");
       break;
   }
   
-  EPD_DeepSleep();
   lastDisplayUpdate = millis();
 }
 
@@ -179,13 +165,21 @@ void setup() {
   // Čitaj slide switch i postavi mode
   CURRENT_MODE = digitalRead(SLIDE_PIN) ? 1 : 0;
   
-  Serial.print("[KIRO] AceButton ready - MODE: ");
+  Serial.println("=== KIRO E-INK DISPLAY CONTROLLER ===");
+  Serial.print("MODE: ");
   Serial.print(CURRENT_MODE);
   if (CURRENT_MODE == 0) {
-    Serial.println(" (LOCK - samo very long press 10s)");
+    Serial.println(" (LOCK MODE)");
+    Serial.println("  - Samo VERY LONG PRESS (10s) → Clear display");
+    Serial.println("  - Svi ostali clickovi se ignoriraju");
   } else {
-    Serial.println(" (CLICK/RECORD - single/double/triple + long press 3s)");
+    Serial.println(" (CLICK/RECORD MODE)");
+    Serial.println("  - SINGLE CLICK → Cycle display screens");
+    Serial.println("  - DOUBLE CLICK → Show text screen");
+    Serial.println("  - TRIPLE CLICK → Show clock screen");
+    Serial.println("  - LONG PRESS (3s) → Show image screen");
   }
+  Serial.println("=====================================");
   
   // Initialize display
   initDisplay();
@@ -233,17 +227,19 @@ void loop() {
     if (clickCount == 1) {
       if (singleClickValid) {
         emitEvent("EVENT: SINGLE_CLICK");
+        Serial.println("  → Action: Cycle display screens (0→1→2→3→0...)");
         cycleDisplay(); // Change display screen
+      } else {
+        Serial.println("  → Single click invalid (too long press)");
       }
-      // Ako single click nije valjan, jednostavno ga preskoči
     } else if (clickCount == 2) {
       emitEvent("EVENT: DOUBLE_CLICK");
-      // Double click - show specific screen
+      Serial.println("  → Action: Show text screen (gImage_1)");
       currentScreen = 1;
       updateDisplay();
     } else if (clickCount >= 3) {
       emitEvent("EVENT: TRIPLE_CLICK");
-      // Triple click - show clock
+      Serial.println("  → Action: Show clock screen (4-gray)");
       currentScreen = 3;
       updateDisplay();
     }
@@ -252,14 +248,14 @@ void loop() {
   
   // Long press action (samo za mode 1)
   if (CURRENT_MODE == 1 && longFired) {
-    // Long press - show image
+    Serial.println("  → Action: Show image screen (gImage_2)");
     currentScreen = 2;
     updateDisplay();
   }
   
   // Very long press action (samo za mode 0)
   if (CURRENT_MODE == 0 && veryLongFired) {
-    // Very long press - clear display
+    Serial.println("  → Action: Clear display (blank white screen)");
     currentScreen = 0;
     updateDisplay();
   }
