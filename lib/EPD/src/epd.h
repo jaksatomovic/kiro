@@ -41,6 +41,24 @@ void epd_partial_update_full(const uint8_t* image);
 void epd_set_basemap(const uint8_t* basemap);
 void epd_sleep(void);
 
+// Text funkcije
+void epd_draw_text(int x, int y, const char* text, bool white);
+void epd_draw_char(int x, int y, char c, bool white);
+int epd_get_text_width(const char* text);
+void epd_create_text_buffer(uint8_t* buffer);
+void epd_display_text(const char* text, int x, int y, bool white);
+
+// Small font funkcije (na temelju ESP32_ePaper_example SmallFont.c)
+void epd_draw_small_text(int x, int y, const char* text, bool white);
+void epd_draw_small_char(int x, int y, char c, bool white);
+int epd_get_small_text_width(const char* text);
+void epd_display_small_text(const char* text, int x, int y, bool white);
+
+
+// Image funkcije
+void epd_display_image_at_position(const uint8_t* image, int x, int y, int width, int height);
+void epd_display_image_centered(const uint8_t* image, int width, int height);
+
 // Utility funkcije
 void epd_setup_spi(void);
 void epd_setup_pins(void);

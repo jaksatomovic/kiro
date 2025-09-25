@@ -1,5 +1,7 @@
 #include "epd.h"
 #include "epd_spi.h"
+#include "font_simple.h"
+#include "font_small.h"
 
 // Glavne display funkcije
 void epd_init(void) {
@@ -100,4 +102,106 @@ void epd_wait_for_busy(void) {
   while (epd_is_busy()) {
     delay(10);
   }
+}
+
+// Text funkcije
+void epd_create_text_buffer(uint8_t* buffer) {
+  // Inicijaliziraj buffer kao bijeli (sve 1)
+  for (uint16_t i = 0; i < EPD_ARRAY; i++) {
+    buffer[i] = 0xFF;
+  }
+}
+
+void epd_draw_text(int x, int y, const char* text, bool white) {
+  // Ova funkcija radi direktno na display buffer-u
+  // Koristi se interno
+}
+
+void epd_draw_char(int x, int y, char c, bool white) {
+  // Ova funkcija radi direktno na display buffer-u
+  // Koristi se interno
+}
+
+int epd_get_text_width(const char* text) {
+  return getTextWidth(text);
+}
+
+void epd_display_text(const char* text, int x, int y, bool white) {
+  // Kreiraj buffer za tekst
+  static uint8_t textBuffer[EPD_ARRAY];
+  
+  // Inicijaliziraj buffer kao bijeli
+  epd_create_text_buffer(textBuffer);
+  
+  // Crtaj tekst na buffer
+  drawText(textBuffer, x, y, text, white);
+  
+  // Prikaži buffer na display
+  epd_display_image(textBuffer);
+}
+
+// Small font funkcije (na temelju ESP32_ePaper_example SmallFont.c)
+void epd_draw_small_text(int x, int y, const char* text, bool white) {
+  // Ova funkcija radi direktno na display buffer-u
+  // Koristi se interno
+}
+
+void epd_draw_small_char(int x, int y, char c, bool white) {
+  // Ova funkcija radi direktno na display buffer-u
+  // Koristi se interno
+}
+
+int epd_get_small_text_width(const char* text) {
+  return getSmallTextWidth(text);
+}
+
+void epd_display_small_text(const char* text, int x, int y, bool white) {
+  // Kreiraj buffer za tekst
+  static uint8_t textBuffer[EPD_ARRAY];
+  
+  // Inicijaliziraj buffer kao bijeli
+  epd_create_text_buffer(textBuffer);
+  
+  // Crtaj tekst na buffer pomoću small fonta
+  drawSmallText(textBuffer, x, y, text, white);
+  
+  // Prikaži buffer na display
+  epd_display_image(textBuffer);
+}
+
+
+// Image funkcije
+void epd_display_image_at_position(const uint8_t* image, int x, int y, int width, int height) {
+  // Kreiraj buffer za sliku
+  static uint8_t imageBuffer[EPD_ARRAY];
+  
+  // Inicijaliziraj buffer kao bijeli
+  epd_create_text_buffer(imageBuffer);
+  
+  // Izračunaj poziciju u buffer-u
+  int imageBytes = (width * height) / 8;
+  int startX = x;
+  int startY = y;
+  
+  // Kopiraj sliku u buffer na određenoj poziciji
+  for (int i = 0; i < imageBytes && i < EPD_ARRAY; i++) {
+    int bufferX = startX + (i * 8) % width;
+    int bufferY = startY + (i * 8) / width;
+    
+    if (bufferY < EPD_HEIGHT && bufferX < EPD_WIDTH) {
+      uint16_t bufferIndex = (bufferX + bufferY * EPD_WIDTH) / 8;
+      if (bufferIndex < EPD_ARRAY) {
+        imageBuffer[bufferIndex] = pgm_read_byte(&image[i]);
+      }
+    }
+  }
+  
+  // Prikaži buffer na display
+  epd_display_image(imageBuffer);
+}
+
+void epd_display_image_centered(const uint8_t* image, int width, int height) {
+  int x = (EPD_WIDTH - width) / 2;
+  int y = (EPD_HEIGHT - height) / 2;
+  epd_display_image_at_position(image, x, y, width, height);
 }

@@ -6,6 +6,7 @@ using namespace ace_button;
 // E-ink display includes
 #include "epd.h"
 #include "Ap_29demo.h"
+#include "clock.h"
 
 // Pin definicije za Adafruit Feather ESP32-S3
 constexpr uint8_t BTN_PIN = 10;          // Feather S3 tipka
@@ -36,7 +37,7 @@ bool singleClickValid = true; // Da li je single click valjan
 // E-ink display state
 bool displayInitialized = false;
 unsigned long lastDisplayUpdate = 0;
-uint8_t currentScreen = 0; // 0=blank, 1=text, 2=image, 3=clock
+uint8_t currentScreen = 0; // 0=blank, 1=text, 2=image, 3=clock, 4=simple_font, 5=small_font, 6=small_numbers, 7=clock_icon
 
 // Funkcija za ispis eventa s trenutnim modom
 void emitEvent(const char* event) {
@@ -128,13 +129,33 @@ void updateDisplay() {
       epd_4gray_display(gImage_4G1);
       Serial.println("Display: Clock screen (4-gray gImage_4G1)");
       break;
+      
+    case 4: // image font test (48x48 font)
+      epd_display_image_centered(epd_bitmap_clock_2, 48, 48);
+      Serial.println("Display: Clock icon centered (48x48px)");
+      break;
+      
+    case 5: // Large clock icon centered (64x64px)
+      epd_display_image_centered(epd_bitmap_clock_3, 64, 64);
+      Serial.println("Display: Large clock icon centered (48x48px)");
+      break;
+      
+    case 6: // Small font numbers test - poboljšani brojevi
+      epd_display_small_text("0123456789", 10, 80, false);
+      Serial.println("Display: Small font numbers test (improved 0-9)");
+      break;
+      
+    case 7: // Small clock icon centered (32x32px)
+      epd_display_image_centered(epd_bitmap_clock, 32, 32);
+      Serial.println("Display: Small clock icon centered (32x32px)");
+      break;
   }
   
   lastDisplayUpdate = millis();
 }
 
 void cycleDisplay() {
-  currentScreen = (currentScreen + 1) % 4;
+  currentScreen = (currentScreen + 1) % 8;  // 0-7 screens
   updateDisplay();
   Serial.print("Display screen changed to: ");
   Serial.println(currentScreen);
@@ -174,10 +195,11 @@ void setup() {
     Serial.println("  - Svi ostali clickovi se ignoriraju");
   } else {
     Serial.println(" (CLICK/RECORD MODE)");
-    Serial.println("  - SINGLE CLICK → Cycle display screens");
+    Serial.println("  - SINGLE CLICK → Cycle display screens (0-7)");
     Serial.println("  - DOUBLE CLICK → Show text screen");
     Serial.println("  - TRIPLE CLICK → Show clock screen");
     Serial.println("  - LONG PRESS (3s) → Show image screen");
+    Serial.println("  Screens: 0=blank, 1=text, 2=image, 3=clock, 4=large_clock, 5=large_clock, 6=small_numbers, 7=small_clock");
   }
   Serial.println("=====================================");
   
@@ -227,7 +249,7 @@ void loop() {
     if (clickCount == 1) {
       if (singleClickValid) {
         emitEvent("EVENT: SINGLE_CLICK");
-        Serial.println("  → Action: Cycle display screens (0→1→2→3→0...)");
+        Serial.println("  → Action: Cycle display screens (0→1→2→3→4→5→6→7→0...)");
         cycleDisplay(); // Change display screen
       } else {
         Serial.println("  → Single click invalid (too long press)");
